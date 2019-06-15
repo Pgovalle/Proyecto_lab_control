@@ -1,0 +1,137 @@
+\documentclass[12pt]{article}
+\usepackage{amsmath, amsthm, amsfonts,amssymb}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{multicol}
+\usepackage{listings}
+\lstset{basicstyle=\footnotesize\ttfamily,breaklines=true}
+\usepackage{alltt}
+\usepackage{graphicx}
+\usepackage{hyperref}
+
+
+\usepackage{geometry}
+\geometry{left=2.5cm, right=2.5cm, top=2cm, bottom=3cm}
+
+\begin{document}
+% Cambia el nombre cuadro por tabla
+\renewcommand{\listtablename}{Indice de tablas}
+\renewcommand{\tablename}{Tabla}
+
+\begin{figure}
+\begin{minipage}{2.5cm}
+\includegraphics[width=0.8\textwidth]{LogoUC-BN.pdf}
+\end{minipage}
+\begin{minipage}{14.5cm}
+\vspace{4mm}
+{\sc PONTIFICIA UNIVERSIDAD CAT\'OLICA DE CHILE}\\
+Escuela de Ingeniería\\
+Departamento de Ingeniería Eléctrica\\
+Nombre curso \\
+2017-1\\
+\vspace{0mm}
+\hrulefill
+\end{minipage}
+\end{figure}
+\phantom{""}
+\vspace{-11mm}
+\begin{flushleft}
+\scriptsize
+\textbf{Profesores:}  Felipe Nuñez \\
+\textbf{Ayudante:}
+\end{flushleft}
+\vspace{-4mm}
+\begin{center}
+\Large{\textbf{Uso de Photons}}
+\end{center}
+\normalsize
+
+
+\section{Instalación}
+Esta sección se subdivide en tres, instalación general y  dos modos que se usarán con frecuencia; azul (\textit{listening mode}) y amarillo (DFU). 
+\subsection{General}
+
+Instalar Drivers
+Instalar node.js
+Links de descarga aqui:
+
+\medskip
+
+\hyperref[https://docs.particle.io/guide/getting-started/connect/photon/
+]{https://docs.particle.io/guide/getting-started/connect/photon/
+}
+
+
+\medskip
+Una vez instalados en cmd hacer
+\medskip
+\begin{verbatim}
+npm install -g particle-cli
+\end{verbatim}
+
+\subsection{Azul \textit{Listening mode}}
+
+Es posible que la instalación del driver no funcione, (ver administrador de dispositivos en caso de que exista una alerta al poner el photon en \textit{listening mode}) en cuyo caso ir al siguiente link:
+
+\medskip
+
+\hyperref[https://community.particle.io/t/installing-the-usb-driver-on-windows-serial-debugging/882
+]{https://community.particle.io/t/installing-the-usb-driver-on-windows-serial-debugging/882
+}
+
+
+
+
+\subsection{Amarillo \textit{DFU}}
+
+Este tutorial explica bien como instalar los drivers para utilizar DFU-utils. Utilizaremos esto para subir código sin tener que utilizar la ''nube''.
+
+\medskip
+
+\hyperref[https://community.particle.io/t/tutorial-installing-dfu-driver-on-windows-24-feb-2015/3518
+]{https://community.particle.io/t/tutorial-installing-dfu-driver-on-windows-24-feb-2015/3518
+}
+
+
+
+\section{Setup}
+
+Si los drivers y programas están bien instalados, no deberían aparecer errores en los siguientes pasos.
+\medskip
+Poner el photon en \textit{DFU mode} para realizar una actualización de firmware y escribir en cmd: 
+\medskip
+\begin{verbatim}
+particle update
+\end{verbatim}
+\medskip
+Luego nos conectamos a wifi, poner el photon en \textit{listening mode} (azul) y escribir en consola:
+\medskip
+\begin{verbatim}
+particle setup
+\end{verbatim}
+\medskip
+y seguir todas las opciones default (e.g. (y/N) elegir n)
+
+\section{Blink led}
+
+En la carpeta de codigos de ejemplo se ven archivos arduino (.ino) y un .bin.
+
+\medskip
+
+Particle puede compilar y flashear archivos .ino, para eso poner el photon en modo DFU (amarillo) y realizar lo siguiente en consola:
+
+\medskip
+
+\begin{verbatim}
+
+particle compile photon Codigos_Ejemplo/blink/blink.ino --saveTo software.bin
+\end{verbatim}
+\medskip
+El código anterior pasará el codigo fuente a lenguaje de máquina. Luego necesitamos subir el programa al photon:
+\medskip
+\begin{verbatim}
+particle flash --usb software.bin
+\end{verbatim}
+\medskip
+El photon debería blinkear (D7). Notar que ''respira blanco'', esto quiere decir que el módulo wifi está apagado. En la carpeta sockk hay unos códigos en donde el photon se conecta a la red, leer README.
+\end{document}
