@@ -1,7 +1,7 @@
 SYSTEM_MODE(SEMI_AUTOMATIC);
-TCPServer server = TCPServer(80);
+TCPServer server = TCPServer(800);
 TCPClient client;
-//server ip: 192.168.1.103
+//server ip: 192.168.100.100
 uint8_t mem[4] = {48,48,48,48};
 uint8_t *buffer = mem;
 size_t size = 4;
@@ -12,7 +12,8 @@ volatile float kp = 6.0, ki = 0, kd = 0.02, kw = 0, filter = 0.2, kt =2.0;
 volatile float last_read = 0, current_error = 0, last_error = 0, reference = 1600, sum_error = 0, windup = 0, slope = 0;
 volatile float current_slope = 0, last_slope = 0; 
 volatile float proportional; 
-volatile int output;
+volatile int output = 0, last_output = 0;
+int led = D7;
 
 void clean_buffer(uint8_t* buffer, size_t size);
 void recieve_on_buffer(uint8_t* buffer);
@@ -39,13 +40,10 @@ void control_server(){
   else{
     windup = 0;
   }
-  if(client.connected()){ 
-    server.print(output);
-    Serial.println("Server sent");
-  }
+  Serial.println("control..");
 }
 
-Timer control_server_timer(1, control_server);
+Timer control_server_timer(1000, control_server);
 
 void setup(){
   WiFi.connect();
@@ -62,34 +60,62 @@ void setup(){
   Serial.println(WiFi.subnetMask());
   Serial.println(WiFi.gatewayIP());
   client = server.available();
-  control_server_timer.start();
+  pinMode(led, OUTPUT);
+  //control_server_timer.start();
 }
 
 void loop() {
   if(client.connected()){
     //Serial.println("new connection");
     if(client.available()){
-      Serial.println("Server recieve");
+      Serial.print("Server recieve ");
       new_from_client = client.read();
+      Serial.println(new_from_client);
       recieve_on_buffer(buffer);
       int new_value = (*buffer-48)*1 + (*(buffer+1)-48)*10 + (*(buffer+2)-48)*100 + (*(buffer+3)-48)*1000; 
       clean_buffer(buffer,size);
-      switch (new_from_client){
-        case 'r':
+      switch(new_from_client){
+        case '1':
+          current_read = (float)new_value;
+          Serial.print("input");
+          Serial.println(current_read);
+          break;
+        case '2':
           sum_error = 0;
           reference = (float)new_value;
+          Serial.print("reference");
+          Serial.println(reference);
           break;
-        case 'i':
-          current_read = (float)new_value;
-          break;
-        case 'C':
+        case '3':
+          Serial.println("starting online control");
           control_server_timer.start();
-        case 'S':
+          digitalWrite(led, HIGH);
+          break;
+        case '4':
+          Serial.println("ending online control");
           control_server_timer.stop();
+          digitalWrite(led, LOW);
+          break;
         default:
           break;
       }
       //server.write(c);
+    }
+    if(output!=last_output){
+      last_output = output;
+      char out_buffer[5];
+      if(output>4095){
+        sprintf(out_buffer,"%d",4095);
+      }
+      else if(output<0){
+        sprintf(out_buffer,"%d",0);
+      }
+      else{
+        sprintf(out_buffer,"%d",output);
+      }
+      out_buffer[4] = 'S';
+      server.write((uint8_t*)out_buffer, 5,100);
+      Serial.println("Server sent");
     }
   }
   else {
@@ -104,9 +130,14 @@ void clean_buffer(uint8_t* buffer, size_t size){
 }
 
 void recieve_on_buffer(uint8_t* buffer){
-  while(client.available()){
+  char stop = client.read();
+  while(stop != 'S'){
     shift_buffer(buffer);
-    *(buffer) = client.read();
+    *(buffer) = stop;
+    //Serial.println(stop);
+    if(client.available()){
+      stop = client.read();
+    }
   }
 }
 

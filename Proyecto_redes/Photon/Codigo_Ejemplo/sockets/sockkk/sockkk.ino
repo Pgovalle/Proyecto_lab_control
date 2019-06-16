@@ -14,6 +14,15 @@ unsigned int port = 80;
 int led = D7; 
 void setup() {
 
+	IPAddress myAddress(192,168,100,100);
+    IPAddress netmask(255,255,255,0);
+    IPAddress gateway(192,168,1,1);
+    IPAddress dns(192,168,1,1);
+    WiFi.setStaticIP(myAddress, netmask, gateway, dns);
+
+    // now let's use the configured IP
+    WiFi.useStaticIP();
+
   pinMode(led, OUTPUT);
   Serial.begin(9600);
   WiFi.connect(); // nos conectamos a wifi

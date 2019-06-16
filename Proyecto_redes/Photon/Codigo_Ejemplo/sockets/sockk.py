@@ -10,7 +10,7 @@ la variable UDP_IP a la correspondiente IP del Photon
 
 import socket
 
-UDP_IPs = ["192.168.1.125","192.168.1.103"]
+UDP_IPs = ["192.168.100.100","192.168.1.103"]
 UDP_PORT = 80
 i = 0;
 while True:

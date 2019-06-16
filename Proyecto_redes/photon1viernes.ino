@@ -3,19 +3,21 @@ SYSTEM_MODE(SEMI_AUTOMATIC);
 int analog_output = A6;
 int analog_input = A0;
 TCPClient client;
-byte server[] = {192,168,1,103};
+byte server[] = {192,168,100,100};
 volatile float kp = 6.0, ki = 0, kd = 0.02, kw = 0, filter = 0.2, kt =2.0;
 volatile float current_read = 0, last_read = 0, current_error = 0, last_error = 0, reference = 1600, sum_error = 0, windup = 0, slope = 0;
 volatile float current_slope = 0, last_slope = 0;
-volatile float proportional;
+volatile float proportional, last_read_sent = 0.0;
 volatile int output;
 volatile int flag_server = 0, error_margin = 0;
 volatile int start = 0, allow_control2 = 0;
 float dt = 0.001;
 uint8_t mem[4] = {48,48,48,48};
+uint8_t mem2[4] = {48,48,48,48};
 size_t size = 4;
 volatile uint8_t received_from_server[4];
 uint8_t *buffer = mem;
+uint8_t *buffer2 = mem2; 
 volatile char new_from_client;
 
 //TCPServer server = TCPServer(81);
@@ -60,9 +62,9 @@ void print_values(){
 
 }
 
-Timer control1_timer(1, control1);
+Timer control1_timer(1000, control1);
 Timer print_values_timer(1000, print_values);
-Timer read_input_timer(1, read_input);
+Timer read_input_timer(1000, read_input);
 Timer control2_timer(1, control2);
 
 
@@ -114,35 +116,25 @@ void control1(){
 	else{
 		windup = 0;
 	}
+	Serial.print("Simple control");
+	Serial.println(output);
 	analogWrite(analog_output, output);
-	if(allow_control2 == 1 && abs(current_read-reference) >= error_margin){
-
-
-
-		client.write('C');
-		Serial.println("a");
-		control2_timer.start();
-		Serial.println("b");
-		control1_timer.stop();
-		Serial.println("b1");
-	}
+	//if(allow_control2 == 1 && abs(current_read-reference) >= error_margin){
+	//	client.write('C');
+	//	Serial.println("a");
+	//	control2_timer.start();
+	//	Serial.println("b");
+	//	control1_timer.stop();
+	//	Serial.println("b1");
+	//}
 }
 
 void control2(){
-	if(!client.connected()){
-		client.connect(server, 80);
-	}
 	digitalWrite(led, HIGH);
 	//Serial.println("c");
 	//void loop
-	if(client.available()){
-		//Serial.println("d");
-      	recieve_on_buffer(buffer);
-      	Serial.println("Client recieve");
-	}
-    output = (*buffer-48)*1 + (*(buffer+1)-48)*10 + (*(buffer+2)-48)*100 + (*(buffer+3)-48)*1000;
-      //clean_buffer(buffer,size);
     analogWrite(analog_output, output);
+}
 //    if(allow_control2 == 0 || abs( current_read-reference) < error_margin){
 //		control2_timer.stop();
 //		control1_timer.start();
@@ -154,19 +146,14 @@ void control2(){
     	//control2_timer.stop();
     	//digitalWrite(led, LOW);
     //}
-}
 
 
 
 void read_input(){
 	last_read = current_read;
 	current_read = analogRead(analog_input);
-	if(control2_timer.isActive()){
-		client.write('i');
-		client.print((int)current_read);
-		Serial.println("Client sent");
-	}
 }
+
 void setup(){
 	pinMode(led, OUTPUT);
 	Serial.begin(9600);
@@ -177,7 +164,7 @@ void setup(){
 		start = Serial.read();
 	}
 	Serial.println("connecting...");
-	if(client.connect(server, 80)){
+	if(client.connect(server, 800)){
 		Serial.println("connected");
 	}
 	else{
@@ -185,13 +172,35 @@ void setup(){
 	}
 	pinMode(analog_output, OUTPUT);
 	//timer.start();
-	//control1_timer.start();
-	control2_timer.start();
+	control1_timer.start();
+	//control2_timer.start();
 	read_input_timer.start();
-	print_values_timer.start();
+	//print_values_timer.start();
 }
 
 void loop(){
+	if(client.connected()){
+		if(client.available() && control2_timer.isActive()){
+			recieve_on_buffer(buffer2);
+      		Serial.print("Client recieve");
+      		output = (*buffer2-48)*1 + (*(buffer2+1)-48)*10 + (*(buffer2+2)-48)*100 + (*(buffer2+3)-48)*1000;
+      		clean_buffer(buffer2,size);
+      		Serial.println(output);
+		}
+		if(last_read_sent != current_read){
+			last_read_sent = current_read;
+			int out_meassure = (int)current_read + 10000;
+			char out_buffer[6];
+			sprintf(out_buffer,"%d",out_meassure);
+    		out_buffer[5] = 'S';
+    		client.write((uint8_t*)out_buffer, 6);
+			Serial.println("Client sent out_meassure");
+		}
+	}
+	else{
+		client.connect(server,800);
+      //clean_buffer(buffer,size);
+	}
 }
 
 void serialEvent(){
@@ -200,9 +209,17 @@ void serialEvent(){
 	switch (c) {
 		case 'C':
 			if (allow_control2==1){
+				control2_timer.stop();
+				control1_timer.start();
 				allow_control2 = 0;
+				char command[2] = {'4','S'};
+				client.write((uint8_t*)command,2);
 			} else {
+				control1_timer.stop();
+				control2_timer.start();
 				allow_control2 = 1;
+				char command[2] = {'3','S'};
+				client.write((uint8_t*)command,2);
 			}
 			break;
 		case 's':
@@ -221,9 +238,13 @@ void serialEvent(){
 	    	break;
 	    case 'r':
 	    	reference = Serial.parseFloat();
-	    	if(allow_control2 == 1 && client.connected()){
-	    		client.write('r');
-	    		client.print((int)reference);
+	    	if(client.connected()){
+	    		int new_reference = 20000+(int)reference;
+	    		char out_buffer2[6];
+				sprintf(out_buffer2,"%d",new_reference);
+    			out_buffer2[5] = 'S';
+				Serial.println("Client sent new_reference");
+	    		client.write((uint8_t*)out_buffer2, 6);
 	    	}
 	    	break;
 	    case 'w':
@@ -251,10 +272,17 @@ void clean_buffer(uint8_t* buffer, size_t size){
 }
 
 void recieve_on_buffer(uint8_t* buffer){
-  while(client.available()){
-    shift_buffer(buffer);
-    *(buffer) = client.read();
-  }
+	char stop = client.read();
+	while(stop != 'S'){
+		if(stop>=48 && stop<=57){
+    		shift_buffer(buffer);
+    		*(buffer) = stop;
+    		//Serial.println(stop);
+    	}
+    	if(client.available()){
+      		stop = client.read();
+    	}
+  	}
 }
 
 void shift_buffer(uint8_t* buffer){
