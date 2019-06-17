@@ -9,12 +9,12 @@
 // Para no conectarnos a la inutil cloud de manera auto
 SYSTEM_MODE(SEMI_AUTOMATIC);
 UDP Udp;
-unsigned int port = 80;
+unsigned int port = 5005;
 
 int led = D7; 
 void setup() {
 
-	IPAddress myAddress(192,168,100,100);
+	IPAddress myAddress(192,168,1,125);
     IPAddress netmask(255,255,255,0);
     IPAddress gateway(192,168,1,1);
     IPAddress dns(192,168,1,1);

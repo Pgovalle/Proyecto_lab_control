@@ -1,11 +1,11 @@
 SYSTEM_MODE(SEMI_AUTOMATIC);
 TCPServer server = TCPServer(800);
 TCPClient client;
-//server ip: 192.168.100.100
+//server ip: 192.168.1.125
 uint8_t mem[4] = {48,48,48,48};
 uint8_t *buffer = mem;
 size_t size = 4;
-float dt = 0.001;
+float dt = 0.01;
 volatile char new_from_client;
 volatile int  current_read = 0;
 volatile float kp = 6.0, ki = 0, kd = 0.02, kw = 0, filter = 0.2, kt =2.0;
@@ -40,10 +40,25 @@ void control_server(){
   else{
     windup = 0;
   }
-  Serial.println("control..");
+  //Serial.println("control..");
 }
 
-Timer control_server_timer(1000, control_server);
+Timer control_server_timer(10, control_server);
+
+void print_values(){
+  Serial.print("kp=");
+  Serial.print(kp);
+  Serial.print(" | ki=");
+  Serial.print(ki);
+  Serial.print(" | kd=");
+  Serial.print(kd);
+  Serial.print(" | kw=");
+  Serial.print(kw);
+  Serial.print(" | kt=");
+  Serial.println(kt);
+}
+
+Timer print_values_timer(1000, print_values);
 
 void setup(){
   WiFi.connect();
@@ -61,6 +76,7 @@ void setup(){
   Serial.println(WiFi.gatewayIP());
   client = server.available();
   pinMode(led, OUTPUT);
+  print_values_timer.start();
   //control_server_timer.start();
 }
 
@@ -68,17 +84,17 @@ void loop() {
   if(client.connected()){
     //Serial.println("new connection");
     if(client.available()){
-      Serial.print("Server recieve ");
+      //Serial.print("Server recieve ");
       new_from_client = client.read();
-      Serial.println(new_from_client);
+      //Serial.println(new_from_client);
       recieve_on_buffer(buffer);
       int new_value = (*buffer-48)*1 + (*(buffer+1)-48)*10 + (*(buffer+2)-48)*100 + (*(buffer+3)-48)*1000; 
       clean_buffer(buffer,size);
       switch(new_from_client){
         case '1':
           current_read = (float)new_value;
-          Serial.print("input");
-          Serial.println(current_read);
+          //Serial.print("input");
+          //Serial.println(current_read);
           break;
         case '2':
           sum_error = 0;
@@ -115,7 +131,7 @@ void loop() {
       }
       out_buffer[4] = 'S';
       server.write((uint8_t*)out_buffer, 5,100);
-      Serial.println("Server sent");
+      //Serial.println("Server sent");
     }
   }
   else {
@@ -146,3 +162,33 @@ void shift_buffer(uint8_t* buffer){
     *(buffer+i) = *(buffer+i-1);
   }
 }
+
+void serialEvent(){
+  sum_error = 0.0;
+  char c = Serial.read();
+  switch (c) {
+      case 'p':
+          kp = Serial.parseFloat();
+          break;
+      case 'i':
+        ki = Serial.parseFloat();
+          break;
+      case 'd':
+        kd = Serial.parseFloat();
+        break;
+      case 'w':
+        kw = Serial.parseFloat();
+        break;
+      case 'f':
+        filter = Serial.parseFloat();
+        break;
+      case 't':
+        kt = Serial.parseFloat();
+        break;
+      default:
+        break;
+        // do something
+  }
+}
+
+
